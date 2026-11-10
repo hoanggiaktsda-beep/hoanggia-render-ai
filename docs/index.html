@@ -18,7 +18,7 @@ label{display:block;margin:12px 0 6px}input[type=range],input[type=file],select{
 <main><h2>12 module</h2><div id="modules" class="grid"></div>
 <div class="layout"><section class="panel">
 <h2 id="mode">05 · Upscale CPU</h2><p id="description" class="note">Nội suy ảnh 2× hoặc 4× bằng Canvas. Đây không phải AI super-resolution.</p>
-<label for="file">Ảnh đầu vào</label><input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+<label for="file">Ảnh đầu vào</label><input type="file" id="file" accept="image/png,image/jpeg,image/webp"><p class="note">JPG · PNG · WebP, tối đa 12 MP. Có thể kéo thả ảnh vào khung xem trước.</p>
 <div id="controls">
 <label for="scale">Tỷ lệ xuất ảnh</label><select id="scale"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select>
 <label for="brightness">Độ sáng: <output id="brightnessValue">100</output>%</label><input type="range" id="brightness" min="50" max="150" value="100">
@@ -28,7 +28,7 @@ label{display:block;margin:12px 0 6px}input[type=range],input[type=file],select{
 </div>
 <div class="actions"><button class="action" id="apply" disabled>Xử lý ảnh</button><button class="action secondary" id="reset">Đặt lại</button><button class="action secondary" id="download" disabled>Tải PNG</button></div>
 <p class="note" role="status" aria-live="polite" id="status">Hãy tải ảnh lên để bắt đầu.</p>
-</section><section class="panel"><h2>Xem trước kết quả</h2><div class="preview"><canvas id="preview" width="720" height="420" aria-label="Ảnh xem trước"></canvas></div><p class="note" id="dimensions">Chưa có ảnh</p></section></div>
+</section><section class="panel"><h2>Xem trước kết quả</h2><label><input type="checkbox" id="compare"> Xem ảnh gốc (so sánh trước/sau)</label><div class="preview" id="dropzone"><canvas id="preview" width="720" height="420" aria-label="Ảnh xem trước"></canvas></div><p class="note" id="dimensions">Chưa có ảnh</p></section></div>
 <p class="note">Bảo toàn dữ liệu: ảnh xử lý trên thiết bị của bạn, không gửi đến máy chủ. Giới hạn ảnh đầu vào 12 MP; kết quả tối đa 24 MP. Các tác vụ AI còn lại sẽ chỉ mở khi backend thực sự hoạt động.</p>
 </main><footer>HOANGGIA AI · Browser image processing v0.2</footer>
 <script>
@@ -36,24 +36,28 @@ label{display:block;margin:12px 0 6px}input[type=range],input[type=file],select{
 const names=['Render AI','Cải thiện Render','Redesign','Dò Prompt','Upscale CPU','Đồng bộ','Chỉnh sửa ảnh','Ánh sáng','Diagram','Tiện ích ảnh','Image to 3D','Video AI'];
 const available=new Set([4,6,7,9]);
 const descriptions={4:'Nội suy 1×, 2×, 4× bằng Canvas; không phải AI super-resolution.',6:'Điều chỉnh sáng, tương phản, bão hòa và độ nét bằng CPU.',7:'Chỉnh ánh sáng, tương phản và màu sắc trên thiết bị.',9:'Công cụ xuất ảnh PNG và thay đổi kích thước.'};
-const root=document.getElementById('modules');let selected=4,source=null,resultReady=false;
+const root=document.getElementById('modules');let selected=4,source=null,resultReady=false;let processing=false;
 const el=id=>document.getElementById(id);const canvas=el('preview'),ctx=canvas.getContext('2d');
 function setStatus(message){el('status').textContent=message}
 function renderCards(){root.replaceChildren();names.forEach((name,i)=>{const b=document.createElement('button');b.className='card'+(selected===i?' active':'');b.disabled=!available.has(i);
 const title=document.createElement('strong');title.textContent=String(i+1).padStart(2,'0')+' · '+name;
 const state=document.createElement('p');state.className='state'+(available.has(i)?' ok':'');state.textContent=available.has(i)?'Hoạt động · Xử lý CPU':'Chưa có AI engine';
 b.append(title,state);b.addEventListener('click',()=>{selected=i;el('mode').textContent=String(i+1).padStart(2,'0')+' · '+name;el('description').textContent=descriptions[i];el('scale').value=i===4?'2':'1';renderCards();if(source)processImage()});root.append(b)})}
+function showOriginal(){if(!source)return;const w=source.width,h=source.height;canvas.width=w;canvas.height=h;ctx.filter='none';ctx.drawImage(source,0,0);el('dimensions').textContent='Ảnh gốc: '+w+' × '+h+' px'}
 function clearCanvas(){canvas.width=720;canvas.height=420;ctx.fillStyle='#152235';ctx.fillRect(0,0,720,420);ctx.fillStyle='#aabdd2';ctx.font='20px system-ui';ctx.textAlign='center';ctx.fillText('Tải ảnh để xem trước',360,210)}
 function reset(){for(const id of ['brightness','contrast','saturation'])el(id).value=100;el('sharpness').value=0;el('scale').value=selected===4?'2':'1';for(const id of ['brightness','contrast','saturation','sharpness'])el(id+'Value').textContent=el(id).value;if(source)processImage()}
 function sharpenImage(context,w,h,amount){if(!amount)return;const pixels=context.getImageData(0,0,w,h),data=pixels.data,copy=new Uint8ClampedArray(data),a=amount/100;for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;for(let c=0;c<3;c++){const center=copy[i+c];const edge=4*center-copy[i-4+c]-copy[i+4+c]-copy[i-w*4+c]-copy[i+w*4+c];data[i+c]=Math.max(0,Math.min(255,center+a*edge))}}context.putImageData(pixels,0,0)}
-function processImage(){if(!source)return;try{const factor=Number(el('scale').value),w=source.width*factor,h=source.height*factor;if(w*h>24000000||w>16384||h>16384)throw Error('Kích thước đầu ra quá lớn. Hãy giảm tỷ lệ.');
+function processImage(){if(!source||processing)return;processing=true;try{const factor=Number(el('scale').value),w=source.width*factor,h=source.height*factor;if(w*h>24000000||w>16384||h>16384)throw Error('Kích thước đầu ra quá lớn. Hãy giảm tỷ lệ.');
 el('apply').disabled=true;setStatus('Đang xử lý ảnh...');const off=document.createElement('canvas');off.width=w;off.height=h;const c=off.getContext('2d',{willReadFrequently:true});if(!c)throw Error('Trình duyệt không hỗ trợ Canvas');
 c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.filter='brightness('+el('brightness').value+'%) contrast('+el('contrast').value+'%) saturate('+el('saturation').value+'%)';c.drawImage(source,0,0,w,h);
 sharpenImage(c,w,h,Number(el('sharpness').value));canvas.width=w;canvas.height=h;ctx.drawImage(off,0,0);el('dimensions').textContent=w+' × '+h+' px';resultReady=true;el('download').disabled=false;setStatus('Đã xử lý ảnh trên thiết bị. Có thể tải PNG.');}
-catch(e){resultReady=false;el('download').disabled=true;setStatus('Lỗi: '+e.message)}finally{el('apply').disabled=!source}}
-el('file').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;if(!/^image\/(png|jpeg|webp)$/.test(file.type)){setStatus('Chỉ hỗ trợ PNG, JPG hoặc WebP.');return}try{const bmp=await createImageBitmap(file);if(bmp.width*bmp.height>12000000)throw Error('Ảnh đầu vào vượt 12 MP');if(source&&source.close)source.close();source=bmp;el('apply').disabled=false;processImage()}catch(err){setStatus('Không thể mở ảnh: '+err.message)}});
+catch(e){resultReady=false;el('download').disabled=true;setStatus('Lỗi: '+e.message)}finally{processing=false;el('apply').disabled=!source;if(el('compare').checked)showOriginal()}}
+async function loadImage(file){if(!file)return;if(!/^image\/(png|jpeg|webp)$/.test(file.type)){setStatus('Chỉ hỗ trợ PNG, JPG hoặc WebP.');return}try{const bmp=await createImageBitmap(file);if(bmp.width*bmp.height>12000000)throw Error('Ảnh đầu vào vượt 12 MP');if(source&&source.close)source.close();source=bmp;el('compare').checked=false;el('apply').disabled=false;processImage()}catch(err){setStatus('Không thể mở ảnh: '+err.message)}}
+el('file').addEventListener('change',e=>loadImage(e.target.files[0]));
+el('compare').addEventListener('change',()=>{if(el('compare').checked)showOriginal();else processImage()});
+const dz=el('dropzone');for(const type of ['dragenter','dragover'])dz.addEventListener(type,e=>{e.preventDefault();dz.style.outline='2px dashed #70c6ff'});for(const type of ['dragleave','drop'])dz.addEventListener(type,e=>{e.preventDefault();dz.style.outline='none'});dz.addEventListener('drop',e=>{const file=e.dataTransfer.files[0];if(file)loadImage(file)});
 el('apply').addEventListener('click',processImage);el('reset').addEventListener('click',reset);
 for(const id of ['brightness','contrast','saturation','sharpness'])el(id).addEventListener('input',()=>{el(id+'Value').textContent=el(id).value});
-el('download').addEventListener('click',()=>{if(!resultReady)return;canvas.toBlob(blob=>{if(!blob){setStatus('Không thể xuất PNG');return}const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='HOANGGIA_RENDER_AI_'+canvas.width+'x'+canvas.height+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)},'image/png')});
+el('download').addEventListener('click',()=>{if(!resultReady)return;if(el('compare').checked){el('compare').checked=false;processImage()}canvas.toBlob(blob=>{if(!blob){setStatus('Không thể xuất PNG');return}const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='HOANGGIA_RENDER_AI_'+canvas.width+'x'+canvas.height+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)},'image/png')});
 renderCards();clearCanvas();
 </script></body></html>
