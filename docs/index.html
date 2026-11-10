@@ -1,39 +1,59 @@
 <!doctype html>
-<html lang="vi">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="HOANGGIA RENDER AI - bản thử nghiệm nội bộ">
-<title>HOANGGIA RENDER AI — Staging</title>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOANGGIA RENDER AI — Image Tools</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-*{box-sizing:border-box}
-body{background:#0d1420;color:#edf2fa;margin:0;line-height:1.5}
-header{padding:30px max(20px,6vw);background:#172338}
-main{max-width:1100px;margin:auto;padding:24px}
-h1{margin:0}.sub{color:#aebed0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
-.card{background:#19283b;border:1px solid #33475c;border-radius:14px;padding:20px}
-.state{color:#ffd17d;font-size:13px}footer{padding:30px;color:#aebed0}
-</style>
-</head>
-<body>
-<header><h1>HOANGGIA RENDER AI</h1><p class="sub">Architecture · Interior · Visualization · 3D | Bản staging — chưa công khai sản phẩm</p></header>
-<main>
-<h2>12 module</h2><div class="grid" id="modules"></div>
-<h2>Trạng thái backend</h2>
-<p>Image Engine: CPU baseline, chưa có render AI. 3D Engine: kiểm tra ảnh đầu vào, chưa tạo model 3D. ZeroGPU chưa kết nối.</p>
-<p>Không hiển thị kết quả giả hoặc giả lập thành công. Cần kiểm thử riêng từng Gradio Space trước khi mở công khai.</p>
-</main>
-<footer>HOANGGIA AI · Guest Mode dự kiến · Staging</footer>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}*{box-sizing:border-box}body{background:#0b1220;color:#f1f5fa;margin:0}
+header{background:#19263c;padding:25px max(20px,5vw)}h1{margin:0;font-size:clamp(23px,3vw,34px)}.muted{color:#aabdd2}
+main{max-width:1200px;margin:auto;padding:24px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.card,.panel{background:#18273b;border:1px solid #34475e;border-radius:14px;padding:16px}.card{min-height:110px;text-align:left;color:inherit}
+button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}.card.active{outline:2px solid #70c6ff}
+.state{font-size:12px;color:#f7cb78}.ok{color:#75e2b6}.layout{display:grid;grid-template-columns:minmax(250px,340px) 1fr;gap:16px;margin-top:20px}
+label{display:block;margin:12px 0 6px}input[type=range],input[type=file],select{width:100%}input,select{padding:8px;background:#0e1928;color:white;border:1px solid #41526a;border-radius:8px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.action{border:0;border-radius:9px;background:#2e8cc3;color:white;padding:12px 16px;font-weight:600}
+.action.secondary{background:#34475e}canvas{max-width:100%;height:auto;display:block;margin:auto;background:repeating-conic-gradient(#334 0% 25%,#222 0% 50%) 50% / 20px 20px}
+.preview{min-height:260px;display:grid;place-items:center;overflow:auto}.note{font-size:13px;color:#b6c9db}footer{padding:22px;color:#aabdd2}
+@media(max-width:700px){.layout{grid-template-columns:1fr}main{padding:14px}}
+</style></head><body>
+<header><h1>HOANGGIA RENDER AI</h1><p class="muted">Công cụ ảnh hoạt động trực tiếp trong trình duyệt · Không cần đăng nhập · Chưa tích hợp AI GPU</p></header>
+<main><h2>12 module</h2><div id="modules" class="grid"></div>
+<div class="layout"><section class="panel">
+<h2 id="mode">05 · Upscale CPU</h2><p id="description" class="note">Nội suy ảnh 2× hoặc 4× bằng Canvas. Đây không phải AI super-resolution.</p>
+<label for="file">Ảnh đầu vào</label><input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+<div id="controls">
+<label for="scale">Tỷ lệ xuất ảnh</label><select id="scale"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select>
+<label for="brightness">Độ sáng: <output id="brightnessValue">100</output>%</label><input type="range" id="brightness" min="50" max="150" value="100">
+<label for="contrast">Tương phản: <output id="contrastValue">100</output>%</label><input type="range" id="contrast" min="50" max="150" value="100">
+<label for="saturation">Bão hòa: <output id="saturationValue">100</output>%</label><input type="range" id="saturation" min="0" max="200" value="100">
+<label for="sharpness">Độ nét: <output id="sharpnessValue">0</output>%</label><input type="range" id="sharpness" min="0" max="100" value="0">
+</div>
+<div class="actions"><button class="action" id="apply" disabled>Xử lý ảnh</button><button class="action secondary" id="reset">Đặt lại</button><button class="action secondary" id="download" disabled>Tải PNG</button></div>
+<p class="note" role="status" aria-live="polite" id="status">Hãy tải ảnh lên để bắt đầu.</p>
+</section><section class="panel"><h2>Xem trước kết quả</h2><div class="preview"><canvas id="preview" width="720" height="420" aria-label="Ảnh xem trước"></canvas></div><p class="note" id="dimensions">Chưa có ảnh</p></section></div>
+<p class="note">Bảo toàn dữ liệu: ảnh xử lý trên thiết bị của bạn, không gửi đến máy chủ. Giới hạn ảnh đầu vào 12 MP; kết quả tối đa 24 MP. Các tác vụ AI còn lại sẽ chỉ mở khi backend thực sự hoạt động.</p>
+</main><footer>HOANGGIA AI · Browser image processing v0.2</footer>
 <script>
-const modules=['Render','Cải thiện Render','Redesign','Dò Prompt','Upscale','Đồng bộ','Chỉnh sửa','Ánh sáng','Diagram','Tiện ích','Image to 3D','Video AI'];
-const root=document.getElementById('modules');
-for(const [i,n] of modules.entries()){
- const card=document.createElement('div');card.className='card';
- const title=document.createElement('strong');title.textContent=String(i+1).padStart(2,'0')+' · '+n;
- const status=document.createElement('p');status.className='state';status.textContent='Chưa kết nối AI engine';
- card.append(title,status);root.append(card);
-}
-</script>
-</body>
-</html>
+"use strict";
+const names=['Render AI','Cải thiện Render','Redesign','Dò Prompt','Upscale CPU','Đồng bộ','Chỉnh sửa ảnh','Ánh sáng','Diagram','Tiện ích ảnh','Image to 3D','Video AI'];
+const available=new Set([4,6,7,9]);
+const descriptions={4:'Nội suy 1×, 2×, 4× bằng Canvas; không phải AI super-resolution.',6:'Điều chỉnh sáng, tương phản, bão hòa và độ nét bằng CPU.',7:'Chỉnh ánh sáng, tương phản và màu sắc trên thiết bị.',9:'Công cụ xuất ảnh PNG và thay đổi kích thước.'};
+const root=document.getElementById('modules');let selected=4,source=null,resultReady=false;
+const el=id=>document.getElementById(id);const canvas=el('preview'),ctx=canvas.getContext('2d');
+function setStatus(message){el('status').textContent=message}
+function renderCards(){root.replaceChildren();names.forEach((name,i)=>{const b=document.createElement('button');b.className='card'+(selected===i?' active':'');b.disabled=!available.has(i);
+const title=document.createElement('strong');title.textContent=String(i+1).padStart(2,'0')+' · '+name;
+const state=document.createElement('p');state.className='state'+(available.has(i)?' ok':'');state.textContent=available.has(i)?'Hoạt động · Xử lý CPU':'Chưa có AI engine';
+b.append(title,state);b.addEventListener('click',()=>{selected=i;el('mode').textContent=String(i+1).padStart(2,'0')+' · '+name;el('description').textContent=descriptions[i];el('scale').value=i===4?'2':'1';renderCards();if(source)processImage()});root.append(b)})}
+function clearCanvas(){canvas.width=720;canvas.height=420;ctx.fillStyle='#152235';ctx.fillRect(0,0,720,420);ctx.fillStyle='#aabdd2';ctx.font='20px system-ui';ctx.textAlign='center';ctx.fillText('Tải ảnh để xem trước',360,210)}
+function reset(){for(const id of ['brightness','contrast','saturation'])el(id).value=100;el('sharpness').value=0;el('scale').value=selected===4?'2':'1';for(const id of ['brightness','contrast','saturation','sharpness'])el(id+'Value').textContent=el(id).value;if(source)processImage()}
+function sharpenImage(context,w,h,amount){if(!amount)return;const pixels=context.getImageData(0,0,w,h),data=pixels.data,copy=new Uint8ClampedArray(data),a=amount/100;for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4;for(let c=0;c<3;c++){const center=copy[i+c];const edge=4*center-copy[i-4+c]-copy[i+4+c]-copy[i-w*4+c]-copy[i+w*4+c];data[i+c]=Math.max(0,Math.min(255,center+a*edge))}}context.putImageData(pixels,0,0)}
+function processImage(){if(!source)return;try{const factor=Number(el('scale').value),w=source.width*factor,h=source.height*factor;if(w*h>24000000||w>16384||h>16384)throw Error('Kích thước đầu ra quá lớn. Hãy giảm tỷ lệ.');
+el('apply').disabled=true;setStatus('Đang xử lý ảnh...');const off=document.createElement('canvas');off.width=w;off.height=h;const c=off.getContext('2d',{willReadFrequently:true});if(!c)throw Error('Trình duyệt không hỗ trợ Canvas');
+c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.filter='brightness('+el('brightness').value+'%) contrast('+el('contrast').value+'%) saturate('+el('saturation').value+'%)';c.drawImage(source,0,0,w,h);
+sharpenImage(c,w,h,Number(el('sharpness').value));canvas.width=w;canvas.height=h;ctx.drawImage(off,0,0);el('dimensions').textContent=w+' × '+h+' px';resultReady=true;el('download').disabled=false;setStatus('Đã xử lý ảnh trên thiết bị. Có thể tải PNG.');}
+catch(e){resultReady=false;el('download').disabled=true;setStatus('Lỗi: '+e.message)}finally{el('apply').disabled=!source}}
+el('file').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;if(!/^image\/(png|jpeg|webp)$/.test(file.type)){setStatus('Chỉ hỗ trợ PNG, JPG hoặc WebP.');return}try{const bmp=await createImageBitmap(file);if(bmp.width*bmp.height>12000000)throw Error('Ảnh đầu vào vượt 12 MP');if(source&&source.close)source.close();source=bmp;el('apply').disabled=false;processImage()}catch(err){setStatus('Không thể mở ảnh: '+err.message)}});
+el('apply').addEventListener('click',processImage);el('reset').addEventListener('click',reset);
+for(const id of ['brightness','contrast','saturation','sharpness'])el(id).addEventListener('input',()=>{el(id+'Value').textContent=el(id).value});
+el('download').addEventListener('click',()=>{if(!resultReady)return;canvas.toBlob(blob=>{if(!blob){setStatus('Không thể xuất PNG');return}const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='HOANGGIA_RENDER_AI_'+canvas.width+'x'+canvas.height+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),30000)},'image/png')});
+renderCards();clearCanvas();
+</script></body></html>
