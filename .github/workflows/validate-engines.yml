@@ -1,0 +1,61 @@
+name: Validate HOANGGIA AI Engines
+on:
+  push:
+    branches: [main, staging/zerogpu-engines-v0.1]
+    paths:
+      - "image-engine/**"
+      - "3d-engine/**"
+      - ".github/workflows/validate-engines.yml"
+  pull_request:
+    paths:
+      - "image-engine/**"
+      - "3d-engine/**"
+      - ".github/workflows/validate-engines.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  syntax-and-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate metadata and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in image-engine 3d-engine; do
+            test -s "$d/app.py"
+            test -s "$d/requirements.txt"
+            test -s "$d/README.md"
+            grep -q '^sdk: gradio$' "$d/README.md"
+            grep -q '^app_file: app.py$' "$d/README.md"
+            python -m py_compile "$d/app.py"
+          done
+      - name: Install dependencies
+        run: |
+          python -m pip install --disable-pip-version-check -r image-engine/requirements.txt -r 3d-engine/requirements.txt
+      - name: Test application functions with sample image
+        run: |
+          python - <<'PY'
+          import importlib.util
+          from PIL import Image
+          def load(path, name):
+              spec=importlib.util.spec_from_file_location(name,path)
+              mod=importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(mod)
+              return mod
+          image=Image.new("RGB",(32,24),(120,80,40))
+          img=load("image-engine/app.py","image_engine")
+          result,message=img.process(image,"Upscale (CPU baseline)",0.3)
+          assert result.size==(64,48)
+          assert "CPU" in message
+          result,message=img.process(image,"Enhance (CPU baseline)",0.3)
+          assert result.size==(32,24)
+          engine3d=load("3d-engine/app.py","engine3d")
+          message=engine3d.inspect(image)
+          assert "Chưa tích hợp" in message
+          print("CPU baseline smoke tests passed; GPU inference NOT tested")
+          PY
