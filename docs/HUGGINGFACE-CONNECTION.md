@@ -4,8 +4,8 @@ Status: **NOT CONNECTED**. This repository cannot provision Spaces without owner
 
 ## Spaces to create under your Hugging Face username
 
-- `<HF_USERNAME>/hoanggia-image-engine`
-- `<HF_USERNAME>/hoanggia-3d-engine`
+- `hoanggiakt/hoanggia-image-engine`
+- `hoanggiakt/hoanggia-3d-engine`
 
 Choose **Gradio** and **ZeroGPU** on each Space. Do not select paid hardware.
 
@@ -23,7 +23,7 @@ The current apps are **CPU-only staging baselines**. Image Space does not render
 ## Verify endpoints before frontend integration
 
 After the Space is running:
-1. Visit `https://huggingface.co/spaces/<HF_USERNAME>/hoanggia-image-engine` and the 3D equivalent.
+1. Visit `https://huggingface.co/spaces/hoanggiakt/hoanggia-image-engine` and the 3D equivalent.
 2. Inspect each Space's **Use via API** page.
 3. Verify the Gradio OpenAPI document at `https://<space-subdomain>.hf.space/gradio_api/openapi.json` (subdomain must be read from the actual Space, not guessed).
 4. Test real uploads and output artifacts.
